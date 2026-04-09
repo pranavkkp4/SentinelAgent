@@ -1,0 +1,379 @@
+\documentclass[11pt]{article}
+
+% -------------------- Packages --------------------
+\usepackage[margin=1in]{geometry}
+\usepackage{times}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[hidelinks]{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tcolorbox}
+
+% -------------------- Custom Environments --------------------
+\newtcolorbox{prosebox}{
+  colback=gray!8,
+  colframe=black!30,
+  boxrule=0.4pt,
+  arc=2pt,
+  left=6pt,
+  right=6pt,
+  top=6pt,
+  bottom=6pt
+}
+
+\newenvironment{prose}{\par\noindent}{\par}
+
+\onehalfspacing
+
+% -------------------- Title Info --------------------
+\title{
+\textbf{SentinelAgent: ML-Based Defense Against Prompt Injection and Data Exfiltration in Tool-Using LLM Agents} \\
+\large CSCI 5742: Cybersecurity Programming \\
+Spring 2026
+}
+
+\author{
+Pranav Kumar Kaliaperumal \\
+University of Colorado Denver \\
+\texttt{pranavkumar.kaliaperumal@ucdenver.edu}
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+
+% ----------------------------------------------------------------
+
+\clearpage
+\begin{abstract}
+
+Large Language Model (LLM) agents that combine retrieval-augmented generation (RAG) with external API and tool invocation are being used in various enterprise and autonomous decision-support systems. While these architectures boost model capability, they also introduce a new weakness where adversaries can embed malicious instructions within retrieved documents to induce prompt injection, unsafe tool execution, and sensitive data exfiltration. Unlike traditional software vulnerabilities, these attacks exploit behavior at the reasoning layer which enables the potential for policy override without direct system compromise.
+
+I propose \textbf{SentinelAgent}, a defense-in-depth architecture that treats the LLM as an untrusted reasoning component and introduces a machine learning--based security middleware across three enforcement boundaries: (1) retrieval-time injection detection, (2) tool-call risk classification with deterministic policy gating, and (3) response-level exfiltration detection. We formalize a content-layer threat model in which adversaries control retrieved documents or web pages but lack direct system access, and we construct a reproducible adversarial benchmark to evaluate security performance.
+
+SentinelAgent is evaluated against no-defense, prompt-only, and rule-based baselines using quantitative metrics including Attack Success Rate (ASR), secret leakage rate, unsafe tool invocation rate, benign task success rate, and latency overhead. By empirically measuring the security--utility trade-off across defense configurations, this project advances the systematic evaluation of LLM agent security and provides practical guidance for deploying tool-augmented agents in adversarial environments.
+
+\end{abstract}
+
+\clearpage
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{Introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Problem Statement}
+Large Language Model (LLM) agents that combine retrieval-augmented generation (RAG) with external tool use are becoming increasingly common in enterprise settings---for example, for knowledge search, workflow automation, customer support, and strategic decision-making. Unlike basic chatbots, these agents interact with external document stores, web pages, and a variety of tools, including APIs and databases. While this makes them much more useful, it also brings new security risks. Specifically, when these agents operate on content that can't be fully trusted, they face threats such as prompt injection, indirect instruction manipulation, unsafe tool use, and leaks of sensitive data.
+
+Prompt injection is an especially tricky problem: attackers can hide malicious instructions inside documents or web pages that the agent retrieves and uses as context. Because LLM agents treat this content as natural language input, they might interpret attacker-provided instructions as legitimate commands. The OWASP Foundation explicitly identifies prompt injection and data exfiltration among the top security risks for LLM-based applications \cite{owasp_llm}. In contrast to traditional security bugs that exploit code, prompt injection exploits how language models follow instructions, creating a new attack vector that allows attackers to override system policies, change what the agent is supposed to do, or trick it into taking unsafe actions.
+
+For my project, I'll focus on a scenario with a tool-using LLM agent in a controlled, enterprise-style environment. The agent will retrieve documents from a vector database, process web content, and use structured tools such as search functions, data retrieval, and messaging utilities. Critical assets include system prompts, internal memory, sensitive configuration data, and the outputs of privileged tools. The main stakeholders will be system operators, administrators, and end users. They depend on the agent to provide correct, secure answers.
+
+In this setting, an attacker doesn't need to hack into the system directly. Instead, they just need to control some of the documents or web pages the agent accesses. By inserting malicious content, they can try to override system settings (e.g., ``ignore previous rules''), trigger illicit actions (e.g., leaking internal data), or extract secrets. This poses a major issue in enterprise knowledge retrieval, where agents may have access to sensitive documents or internal APIs.
+
+Currently, most defenses rely on prompt engineering (e.g., instructing the model to ignore instructions from retrieved content) or basic rule filters. However, research shows that the approaches are fragile, as clever attackers can circumvent them through rephrasing or obfuscation. Simple keyword filters don't catch sophisticated or encoded attacks either. Plus, many present defenses don't have formal threat models or clear ways to measure their effectiveness, so it's hard to know if they really work or what impact they have on the agent's usefulness.
+
+The objective of this work is to advance the cybersecurity foundations of tool-using LLM agents operating over untrusted content. Specifically, this research formalizes a content-layer threat model for prompt injection and data exfiltration in retrieval-augmented, tool-integrated agents; designs a defense-in-depth security middleware incorporating supervised machine learning for injection detection and tool-call risk assessment; and empirically evaluates the proposed system using numerical measures including Attack Success Rate (ASR), secret leakage rate, unsafe tool invocation rate, and benign task achievement rate. By grounding the design in measurable effects and controlled adversarial benchmarks, this work creates a reproducible framework for gauging the effectiveness and limitations of ML-assisted defenses inside adversarial LLM agent deployments.
+
+
+\subsection{Motivation and Significance}
+As organizations rapidly adopt Large Language Model (LLM) agents to automate operations and support decision-making, we're seeing a fundamental change in how enterprise systems interact with data and users. In contrast to traditional software, LLM agents don't just run fixed code---they interpret natural language, pull in information from external sources, and interact with tools that connect to sensitive databases or APIs. This pliability is powerful, but it also creates new security challenges that aren't well covered by present defenses.
+
+One of the biggest concerns is prompt injection and data exfiltration. These attacks leverage the very thing that makes LLMs useful: their ability to follow instructions. If an agent pulls in an untrusted document or web page, an attacker could hide instructions inside that content that the agent might treat as legitimate. Unlike older code injection attacks, which target bugs in software parsing, prompt injection works by tricking the model's reasoning engine itself. OWASP even ranks prompt injection among the top security risks for LLM-based applications, pointing to the criticality of building effective solutions.\cite{owasp_llm}
+
+This isn't only theoretical. In actual enterprise deployments, LLM agents might have access to confidential documents, customer information, or internal systems. If an attacker succeeds in prompt injection, the agent could accidentally leak sensitive data, send unauthorized messages, or misuse internal tools. As organizations use these agents for more critical tasks---such as document analysis, IT operations, customer service, or research---the risks only grow. Unfortunately, traditional security tools such as firewalls or basic input validation do little to stop these kinds of semantic attacks.
+
+From a research perspective, there's a real gap in how we test and compare defenses for these threats. Most proposed solutions rely on prompt engineering or simple filtering rules. There's little solid evidence about how well these work against determined attackers. There's also not much analysis of the trade-off between making agents safer and possibly reducing their usefulness. Without solid benchmarks and metrics, it's hard to know if new defenses are effective or simply give a false sense of security.
+
+That's what motivates my project. I believe we need to treat LLM agents as serious security subjects and take a more rigorous, scientific approach to defending them. My goal is to build a full-featured, tool-using agent with machine-learning--powered security middleware and to study how these defenses hold up in a controlled, realistic environment. I want to focus on the real-world problems of prompt injection, unsafe tool use, and information leakage, and measure both security and agent use in a way that's transparent and reproducible.
+
+The contributions of this work center on developing a practical threat model that reflects how real adversaries might target LLM agents through the content they process, designing and implementing an ML-assisted security middleware capable of detecting injection attempts and evaluating the safety of tool calls, and constructing an empirical testing framework that measures both security and utility using explicit metrics such as Attack Success Rate, leakage rate, unsafe tool invocation, and success on benign tasks. By structuring the project around measurable effects rather than suppositions, this research intends to move the discussion of LLM agent security from conceptual warnings toward systematic, evidence-based evaluation.
+
+Ultimately, strengthening the security foundations of tool-using LLM agents is essential for responsible adoption in enterprise environments. Providing a transparent, reproducible evaluation framework can help organizations understand not only whether defenses reduce attacks, but also how those defenses affect agent performance in practical situations. This equilibrium between safety and usability is critical for deploying LLM agents with confidence.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Threat Model and Assumptions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+For this project, I'm focusing on a threat model where attackers try to influence a tool-using LLM agent by controlling some of the content it processes. My goal is to define which attacks I'll consider, what the attacker can and cannot do, and which parts of the system are in scope---so I can run a fair and realistic security evaluation.
+
+\subsection{Adversary Capabilities}
+In this threat model, the attacker does not compromise the server, modify model weights, or have direct access to system infrastructure. Instead, the adversary's methods focus on the content layer, where they can control some of the information that the LLM agent processes. For example, they might provide documents stored in the vector database or supply web pages that the agent retrieves using its tools. While the attacker's influence is indirect, it can be quite powerful. By controlling the content that enters the model's context, the attacker attempts to manipulate the agent's reasoning and actions.
+
+The attacker's main goal is to cause the agent to break established policies by manipulating the meaning or intent of its inputs. One way this can happen is through prompt injection attacks. In these cases, malicious instructions are hidden within retrieved documents or web content and attempt to override system policies. For example, the attacker might try to get the agent to ignore previous rules or reveal internal information. Another objective is to trigger unsafe tool usage, convincing the agent to call tools in unintended or unauthorized ways, such as sending internal state data or accessing restricted resources. A third goal is data exfiltration. Here, the attacker attempts to retrieve sensitive information embedded in system prompts, internal memory, or simulated ``canary tokens.'' They do this by manipulating model outputs or the arguments used in tool calls.
+
+Attackers may use a variety of obfuscation techniques to bypass basic defenses. They might rephrase malicious instructions, encode content using methods such as base64 or URL encoding, embed instructions in indirect ways, or use social engineering to make their content appear legitimate. It is assumed that the attacker has general knowledge of how the system is designed, sometimes called white-box awareness, but does not have access to runtime secrets, internal logs, system prompts, or model parameters unless the agent itself leaks such information. While the attacker can create complex adversarial text, they cannot exploit vulnerabilities at the network, operating system, or hardware level.
+
+In this model, the attack surface includes retrieved document chunks, web content obtained through tools, the intermediate context passed into the LLM prompt, and the structured tool-call proposals generated by the model. By clearly defining these boundaries, the threat model focuses on content-level hostile manipulation as the primary concern, while excluding threats that compromise lower layers of the system.
+
+\subsection{System Assumptions}
+The agent is run in a carefully regulated environment to ensure experiments remain isolated and do not cause unintended side effects. Every tool the agent uses is set up with logging and policy checks, and each tool use is recorded for later review and analysis. By default, the agent's network access is limited to a specific list of allowed websites or a local sandbox server. This helps prevent the agent from making unforeseen connections and reduces the risk of sensitive data being sent out during testing. To help detect whether sensitive information is leaked, simulated values known as ``canary tokens'' are placed in system prompts or in internal memory. If these values show up in the output, it signals a potential leak.
+
+In this setup, we do not assume that an attacker has direct access to critical components such as model weights, system prompts, runtime secrets, or internal logs. These parts of the system are considered secure unless the agent accidentally reveals them through its own outputs. Following a layered security approach, the large language model is treated as an untrusted reasoning component. This means that anything the model generates, whether it is a proposed tool use or an output for the user, must be checked and validated before it is actually carried out or shown.
+
+This research does not consider attacks against the operating system, hardware, or the core design of the language model itself. Instead, the main focus is on threats arising from the content layer and the adversarial use of natural language. The goal is to study how malicious inputs can influence the agent's reasoning or behavior by changing the meaning of what it processes. By limiting the scope to content-based threats in a safe, sandboxed environment, this threat model stays practical for actual LLM applications and feasible in a controlled academic research setting.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Research Objectives and Questions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The main objective of this project is to design, implement, and rigorously evaluate a machine learning--based defense system for large language model (LLM) agents that utilize external tools and interact with untrusted content. The evaluation framework will prioritize both the security effectiveness of the proposed defenses and the preservation of the agent's functional performance, ensuring results are clearly defined and quantitatively measurable.
+\subsection*{Objective 1}
+The project will involve designing and implementing SentinelAgent, a comprehensive large language model (LLM) agent equipped with a flexible security middleware layer. This agent will be able to retrieve documents, invoke external tools in a controlled manner, manage internal memory, and maintain detailed logs of its actions. The security middleware will feature three key components: an injection-detection model for screening retrieved content, a risk-assessment classifier for tool calls, and a mechanism to recognize potential data exfiltration in agent outputs. 
+
+Objective 1 will be considered successful if all core components are implemented and the agent reliably completes benchmark tasks under both standard and hostile conditions.
+\subsection*{Objective 2}
+A comprehensive set of evaluation tasks will be developed to assess the effectiveness of the proposed defenses in both standard and hostile scenarios. These tasks will be designed to systematically test the agent's resilience to prompt injection, unsafe tool usage, and data leakage attempts, providing a realistic measure of security performance.
+
+Success for Objective 2 will be measured using several numerical measures, including attack success rate, frequency of secret leakage, incidence of tool misuse, and the agent's performance on standard tasks. The accuracy of the injection classifier will also be evaluated. Through comparing these results with those from baseline defenses, the study will determine whether the machine learning--based approach delivers improved security without impairing the agent's effective utility.
+\subsection*{Research Questions}
+
+\begin{itemize}
+    \item RQ1: To what extent does ML-based injection detection reduce Attack Success Rate compared to prompt and rule-based defenses?
+    
+    \item RQ2: What is the trade-off between improved security (reduced ASR and leakage rate) and task utility (task achievement rate and response quality)?
+    
+    \item RQ3: How robust are ML-based defenses against obfuscated or paraphrased injection attempts compared to heuristic filtering approaches?
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Related Work}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Overview of Existing Approaches}
+
+Recent research shows that large language model (LLM) systems equipped with tool-using and agentic capabilities introduce fundamentally new security concerns beyond those faced by standalone models. Surveys of agentic AI security stress that features such as multi-step reasoning, retrieval augmentation, and the use of external tools collectively increase the ways these systems can be attacked, going beyond traditional prompt-level vulnerabilities \cite{schroeder2025multiagent, deng2025agentsurvey}. Importantly, adversaries who control content can exploit the model's tendency to follow instructions by embedding malicious commands within documents or web content that the agent retrieves.
+
+Prompt injection consistently emerges in the literature as a primary threat to LLM-based agents. Empirical studies show that language models are prone to overriding system-level instructions when they encounter adversarially crafted natural language inputs \cite{greshake2023prompt}. In contrast to traditional code injection, these attacks occur at the level of semantic reasoning, which means that simple input validation is not enough to stop them. The challenge is further intensified in agentic systems, which dynamically add retrieved content to the model's context. This process makes it difficult to distinguish between trusted and untrusted instructions.
+
+Surveys focused on agentic AI security identify three main categories of threats: instruction hijacking, unsafe tool usage, and data exfiltration \cite{deng2025agentsurvey, chhabra2026agenticsecurity}. In agents that use tools, prompt injection can lead to more serious outcomes, including the active misuse of APIs, unintentional exposure of internal state, or the spread of malicious content to other systems. These issues are even more pronounced within multi-agent architectures, where communication channels between agents can be exploited to pass adversarial instructions from one component to another \cite{schroeder2025multiagent}.
+
+Current risk reduction strategies can be grouped into three main categories. The first are prompt engineering--based defenses, which aim to strengthen system instructions by instructing models to explicitly ignore commands from external sources. However, studies indicate that these prompt-based approaches are often fragile when faced with cleverly reworded attacks \cite{greshake2023prompt}. The second category includes rule-based filters, which use keyword detection, allowlists, or structured parsing rules to detect and block threats. Although these filters offer some deterministic protection, they commonly struggle to detect attacks that use obfuscation or subtle changes in language \cite{khan2024agenticthreats}. The third category of defenses entails layering multiple techniques, such as ongoing monitoring, policy enforcement, and clearly separating trusted and untrusted inputs \cite{chhabra2026agenticsecurity}.
+
+Although these risks are widely recognized, much of the current literature remains either survey-based or conceptual in nature. While many studies identify different types of threats and recommend general strategies for mitigation, there is an absence of comprehensive empirical testing at controlled hostile conditions. Few works systematically measure the balance between increased security and the potential negative impact on normal task performance. This gap is especially important for LLM agents that use tools, since excessively strict defenses can reduce the agent's practical usefulness.
+\subsection{Comparative Summary}
+
+Table~\ref{tab:relatedwork} summarizes representative prior work and emphasizes common limitations relevant to this project.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccc}
+\toprule
+Study & Focus & Evaluation Style & Limitation \\
+\midrule
+\cite{greshake2023prompt} & Prompt injection attacks & Empirical attack demos & Limited tool-use evaluation \\
+\cite{deng2025agentsurvey} & Agent security survey & Thematic synthesis & No quantitative benchmarks \\
+\cite{khan2024agenticthreats} & Threat taxonomy & Conceptual analysis & Limited empirical testing \\
+\cite{schroeder2025multiagent} & Multi-agent security & Conceptual + open challenges & No implemented defense system \\
+\cite{chhabra2026agenticsecurity} & Threats \& defenses survey & Comparative analysis & Lacks controlled ASR metrics \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of prior work on agentic AI security}
+\label{tab:relatedwork}
+\end{table}
+
+Across these studies, several patterns emerge. First, prompt injection and data exfiltration are consistently identified as high-risk vulnerabilities. Second, countermeasure strategies are often described abstractly without uniform metrics such as Attack Success Rate (ASR) or leakage rate. Third, there is limited work integrating machine-learning--based classification mechanisms into enforcement pipelines for tool invocation decisions.
+
+\subsection{Identified Research Gaps}
+While previous research has shown that agentic LLM systems are susceptible to instruction hijacking and tool misuse, several important gaps in our knowledge and methodology are left unresolved. 
+
+One major limitation is the absence of reproducible evaluation models for assessing the effectiveness of security defenses amid structured hostile conditions. While many studies illustrate how attacks can succeed, few offer quantitative comparisons across several defense strategies using uniform metrics. 
+
+Another gap in the literature is the restricted exploration of the trade-off between enhancing agent security and maintaining usable utility. Excessively strict defenses may block attacks, but can also degrade the agent's ability to perform normal tasks. Few studies explicitly quantify this proportion. Although surveys often recommend layered or defense-in-depth strategies \cite{chhabra2026agenticsecurity, deng2025agentsurvey}, there is little empirical research on integrating supervised learning--based injection detection and tool-call risk classification into complete agent systems.
+
+This project intends to address these gaps through the development of a tool-using LLM agent that integrates multiple layers of solid security checks, including machine learning models for the detection of prompt injection and risky tool calls. Unlike former research that has been largely conceptual or limited to empirical attack demonstrations without uniform metrics, this approach is distinguished by its devotion to empirical rigor and comprehensive comparative evaluation. The system will be assessed versus established defense baselines---such as prompt-only and rule-based filtering---using clear, measurable metrics including attack success rate, leakage rate, unsafe tool invocation rate, and benign task completion rate under normal operating conditions. By conducting head-to-head assessments across these setups and reporting on measurable trade-offs, the project intends not only to move past theoretical discussions but also to offer practical, evidence-based knowledge of the comparative effectiveness and limitations of present defense strategies.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Proposed Approach and System Design}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{High-Level Architecture}
+SentinelAgent is built as a comprehensive LLM agent that can use external tools, while carefully separating untrusted content from trusted operations through multiple layers of security. At the heart of its design remains the idea that the language model itself should not be fully trusted to make final decisions. Instead, the agent can recommend actions and create responses, but any untrusted input, tool usage, or output intended for users must go through strict security checks. This setup is based on the understanding that prompt-injection attacks exploit the model's tendency to follow instructions, and in tool-using agents, these attacks can go beyond producing incorrect answers and lead to unsafe actions in the real world.
+
+Figure~\ref{fig:architecture} shows how the entire system works. When a user sends a query, it goes to the Agent Orchestrator, which uses a plan-act-observe cycle to decide whether to look up documents, use tools, or provide a direct answer. The Retrieval Subsystem enables retrieval-augmented generation by storing documents in a vector database and returning the most relevant pieces through its retriever. At the same time, the Tooling Layer offers structured interfaces for using external tools, such as web browsing in a sandboxed environment, specialized data utilities, or simulated communication channels. Because a determined attacker could poison documents or set up harmful web pages, the agent treats both retrieved content and tool outputs as potentially risky.
+
+To handle these risks, SentinelAgent includes a Security Middleware layer that enforces three key checkpoints: first, deciding what text can go into the LLM's prompt (context construction); second, determining which tool calls are allowed (action execution); and third, controlling what information is shared with the user (response release). Any content retrieved from outside is first screened by an injection detection model, which blocks or isolates instructions that appear malicious before they ever reach the prompt. Tool calls that the LLM proposes are checked by a risk classifier and a policy engine before they are executed. When the agent produces a response, an exfiltration detection module reviews it to make sure no canary tokens or sensitive data are revealed. Every security-related decision and any blocked actions are logged, so that results can be audited, failures can be analyzed, and investigations can be conducted after the fact.
+
+\subsection{Core Components}
+
+\textbf{Agent Orchestrator (Plan, Act, and Observe Loop).}
+The Agent Orchestrator keeps track of all important information related to a task, such as the user's goal, notes from the agent's step-by-step reasoning, evidence it has found, and the results of previous tool uses. It manages tasks through a controlled cycle of planning, acting, and observing. During each cycle, the language model either suggests a specific tool to use (with all necessary arguments) or produces a response for the user. The orchestrator also sets clear boundaries on how many steps the agent can take, how long it can spend, and how many times it can use each tool. These safeguards are essential for testing: they help prevent situations where adversarial prompts could cause endless loops, excessive tool use, or unchecked exploration.
+
+\textbf{Retrieval Subsystem (RAG).}
+The Retrieval Subsystem brings retrieval-augmented generation (RAG) to the agent's workflow. First, it prepares the document collection by breaking it into chunks and creating embeddings, then stores this information in a vector database. When the agent needs information, the subsystem finds and returns the most pertinent document pieces, along with metadata like where each chunk came from and how closely it corresponds to the query. However, the agent does not blindly trust this retrieved content. Every piece of text goes through the Security Middleware before it can be added to the language model's prompt, which helps protect against hidden attacks in poisoned documents. To make results easy to reproduce, the subsystem carefully logs which documents were retrieved, flags any malicious content, and records which chunks were filtered or cleaned up.
+
+\textbf{Tooling Layer (Controlled Action Interfaces).}
+The Tooling Layer provides the agent with a carefully chosen set of structured tools, striking a balance between letting the agent act on its own and keeping the environment safe for experiments. These tools include: (1) a web fetcher, limited to approved domains or a sandbox server; (2) an internal document search function; (3) reliable utilities like a calculator and schema-based parsers; and (4) simulated communication tools that log activity locally instead of connecting to outside systems. Every time the agent uses a tool, the inputs, outputs, timing, and other important details are logged. This detailed tracking enables measuring when tools are used unsafely, identifying policy violations, and analyzing the additional time or overhead introduced by security measures.
+
+\textbf{Security Middleware (Defense-in-Depth Enforcement).}
+The Security Middleware is the main research innovation in SentinelAgent. It provides multiple layers of protection that match the system's possible vulnerabilities, focusing on three crucial boundaries: what information goes into the agent's prompt (context construction), which actions and tool uses are allowed (action execution), and what information can be shared with users (response release). Instead of just relying on careful prompt design, the middleware utilizes clear classification and policy checks that work independently of the language model's own reasoning. Each part of the middleware makes structured decisions, such as allowing, blocking, quarantining, or flagging content, and logs all decisions for later evaluation, troubleshooting, and further analysis.\\
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{
+\centering
+\textbf{SentinelAgent Architecture Diagram}\\[10pt]
+User Query $\rightarrow$ Agent Orchestrator $\rightarrow$ [Retrieval | LLM | Tools] \\
+$\downarrow$ \\
+\textbf{Security Middleware} (3-Layer Defense) \\
+$\downarrow$ \\
+Safe Response
+}}
+\caption{SentinelAgent secure LLM agent architecture with defense-in-depth middleware.}
+\label{fig:architecture}
+\end{figure}
+\emph{(1) Injection Detection Model (Malicious Content Filter).}
+This component classifies retrieved text and tool-returned text as \textit{benign}, \textit{suspicious}, or \textit{malicious}. The model is trained as a supervised classifier on labeled prompt-injection examples and is evaluated using precision/recall and downstream Attack Success Rate (ASR). When content is labeled malicious, it is removed from context plus quarantined (stored but not provided to the LLM). When content is marked as suspicious, the system wraps it in a clear untrusted-content label, such as explicit delimiters or a ``non-instructional evidence'' frame, and also limits how many tokens can be admitted from that source. This approach secures the model's context window continues focused on safe content, so the agent's reasoning continues rooted in clean, reliable evidence.
+
+\emph{(2) Tool-Call Risk Model (Tool Invocation Analyzer).}
+This component evaluates whether a proposed tool call is consistent with system policy and task intent. Inputs include the tool name, structured arguments, current task state, and recent conversation context. The model outputs an allow/block decision (or allow-with-justification) with a confidence score. High-risk patterns include attempts to transmit long, hard-to-understand strings (which could be used for data exfiltration), access URLs that are not on an approved list, or include concealed instructions or secrets in tool arguments. The risk model works alongside a strict policy engine that enforces clear rules, such as destination allowlists, argument length limits, and blocking certain parameter patterns. This combination offers both flexibility to respond to semantic attacks and transparency in enforcement decisions.
+
+\emph{(3) Exfiltration Detection Module (Output Safeguard).}
+Before any response is returned to the user, the output is scanned for policy violations, including disclosure of canary tokens seeded into internal memory/system context and other sensitive patterns (e.g., API-key-like formats). If leakage is detected, the system blocks the response and initiates a safe-regeneration process. This process either generates a refusal or creates a new response with sensitive content removed. The module also keeps an eye on tool-call arguments to catch any attempts to sneak secrets out through tools instead of in direct responses to the user.
+
+\textbf{Logging and Evaluation Instrumentation.}
+All key events are logged: retrieved chunks (pre- and post-filter), classifier outputs, tool-call proposals, tool-call enforcement decisions, tool outputs, and final response checks. This instrumentation supports reproducible evaluation, including calculation of ASR, leakage rate, and unsafe tool invocation rate under multiple baseline configurations.
+
+\subsection{Implementation Plan}
+
+SentinelAgent will be developed in Python, using a modular design that makes it easy to conduct regulated experiments and removal studies. The agent's main loop will rely on a language model interface that supports function calls, and the system will use clear tool schemas to keep tool usage structured and well-defined. For retrieving information, the agent will use a common embedding model and a vector index like FAISS to quickly find similar documents. When new documents are added, the system will break them into set chunks, keep important metadata, and track where each piece of information comes from.
+
+The machine learning parts of the system will be built using the Hugging Face Transformers framework. The injection detection model will start from a lightweight transformer encoder, such as DistilBERT or a DeBERTa variant, and will be fine-tuned with supervised learning on both labeled injection data and synthetic adversarial examples. For the tool-call risk model, the plan is to either develop a second supervised classifier or combine rule-based and model-based scoring, depending on what works best in practice and how much labeled data is available. Training and testing will take place on a workstation with a GPU when possible; if not, model sizes will be chosen to keep training times reasonable.
+
+To make experiments easy to reproduce, all deployment and testing will be done inside Docker containers. By default, the agent will only be able to access a local sandbox server and specific approved domains, keeping it from connecting to to the wider internet by mistake. The tools the agent uses will be simulated and will only log their actions locally, so there are no unintended side effects like sending real emails or posting online. Some important engineering requirements are: making sure evaluation runs are repeatable by using fixed random seeds and controlled document collections, limiting how many steps the agent can take and how many times it can use each tool, and keeping clear logs of all security decisions so results can be audited and fairly graded.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methodology and Evaluation Plan}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The goal of the evaluation is to empirically measure the effectiveness of ML-assisted security defenses within the SentinelAgent architecture. Specifically, the evaluation will assess how well the injection detection and tool-risk classification modules reduce prompt injection success, unsafe tool invocation, and sensitive data leakage, while preserving performance on benign tasks. All experiments will be conducted under the threat model defined earlier, using a structured set of adversarial attacks as well as normal task queries in a controlled and repeatable environment, consistent with prior empirical analyses of agent vulnerabilities \cite{greshake2023prompt, deng2025agentsurvey}.
+
+The system will be deployed using Docker to ensure isolation, reproducibility, and consistent dependency management. Experiments will run on a workstation equipped with a multi-core CPU and, where available, a GPU for training and inference of the injection detection classifier. External network access will be disabled by default. The \texttt{web\_fetch} tool will be restricted to a local sandbox web server hosting adversarial test pages and a small allowlist of static domains used for benign evaluation. This configuration is consistent with secure experimentation principles and controlled evaluation guidance in cybersecurity research\cite{cichonski2012computer}. This controlled evaluation approach corresponds with structured AI risk management principles \cite{nist_ai_rmf}.
+
+To support reproducibility, each experiment will be executed with fixed random seeds, deterministic configuration parameters, and bounded agent step limits. All relevant execution artifacts, such as retrieved document chunks, classifier predictions, proposed tool calls, enforcement decisions, and final outputs, will be logged in a organized format. Structured logging and audit trails are essential for post-hoc analysis and security validation \cite{cichonski2012computer}. These logs will make it possible to compute numerical measures, analyze failures, and conduct controlled ablation experiments.
+
+\subsection{Datasets or Traffic Sources}
+
+The evaluation will use a controlled benchmark suite consisting of both benign and adversarial tasks in order to systematically measure the effectiveness of the proposed defenses. The benign task set will include approximately 100--200 representative tasks that reflect normal agent usage, including document summarization, fact retrieval, multi-document reasoning, and safe tool invocation. These tasks will be constructed from a predefined corpus stored in the vector database as well as from locally hosted web pages. The purpose of this task set is to establish a baseline measure of functional utility and to ensure that security mechanisms do not substantially impair legitimate task performance.
+
+The adversarial task set will similarly contain approximately 100--200 attack cases in which prompt injection payloads are embedded within retrieved documents or accessible web pages. These attacks will include instruction override attempts (e.g., directives to ignore prior constraints), indirect secret extraction prompts, encoded exfiltration attempts using transformations such as base64 or URL encoding, and attempts to induce unauthorized tool invocations. The attack design will be informed by publicly documented injection case studies \cite{greshake2023prompt} and threat taxonomies described in recent agent security surveys \cite{deng2025agentsurvey, chhabra2026agenticsecurity}. To evaluate robustness against dynamic adversaries, additional synthetic variations will be generated through paraphrasing, semantic rewording, and obfuscation strategies.
+
+To support precise and reproducible measurement of information leakage, simulated sensitive values (``canary tokens'') will be embedded within the system prompt and internal memory state. Any appearance of these tokens in model outputs or tool-call arguments will be automatically detected and recorded as a leakage event, providing a deterministic signal for secret exposure amid adversarial conditions.
+
+\subsection{Evaluation Metrics}
+
+The evaluation will measure both security effectiveness and functional utility. Security effectiveness will be quantified using Attack Success Rate (ASR), defined as the percentage of adversarial tasks that result in a policy violation, including instruction override, unsafe tool invocation, or canary leakage. Secret Leakage Rate will measure the percentage of runs in which canary tokens appear in user-visible output or tool-call arguments. Unsafe Tool Invocation Rate will capture the proportion of adversarial tasks in which a disallowed or policy-violating tool call is executed. Functional utility will be measured using Benign Task Achievement Rate (BTSR), defined as the percentage of benign tasks correctly completed according to a predefined evaluation rubric. In addition, the injection classifier will be evaluated using standard classification metrics including Precision, Recall, and F1-score. System performance impact will be measured through latency overhead, calculated as the additional response time introduced by the security middleware relative to a no-defense baseline.
+
+To assess the impact of the proposed defenses, SentinelAgent will be evaluated under four configurations. The first configuration is a No-Defense Baseline in which retrieval and tool use are enabled but no filtering or supervision mechanisms are applied. The second configuration features a Prompt-Only Defense, where the system prompt instructs the model to ignore instructions from retrieved content but no classifier or tool gating is implemented. The third configuration applies a Rule-Based Defense using keyword filtering and strict allowlists for tool arguments without machine learning--based classification. The fourth configuration is the full ML-Assisted Defense proposed in this work, including injection detection, tool-call risk classification, deterministic policy enforcement, and output exfiltration checks.
+
+Each benchmark task will be executed under all four configurations. Logs will be collected, metrics computed, and statistical comparisons performed to determine whether reductions in Attack Success Rate and leakage are statistically meaningful and whether improvements in security come at the cost of reduced benign task performance. This experimental design allows quantitative validation of security claims and provides a principled analysis of the trade-off between robustness and agent utility.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Expected Contributions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+This project is expected to produce technical, empirical, and analytical contributions to the emerging field of agentic AI security. These contributions are designed to provide both a practical system artifact and measurable evidence regarding the effectiveness of defense mechanisms for tool-using LLM agents, a domain increasingly recognized as high-risk in recent security surveys \cite{deng2025agentsurvey, chhabra2026agenticsecurity}.
+
+\textbf{Technical Contributions.}
+First, the project will deliver SentinelAgent, a modular, security-instrumented, tool-using LLM agent architecture. Unlike conceptual analyses or survey-based recommendations \cite{deng2025agentsurvey, schroeder2025multiagent}, SentinelAgent integrates retrieval, structured tool invocation, and defense-in-depth security middleware within a single reproducible framework. The system introduces three enforceable checkpoints: retrieval filtering, tool-call risk evaluation, and output exfiltration detection. Each of these corresponds to a distinct attack surface identified in prior prompt-injection and agent security research \cite{greshake2023prompt, chhabra2026agenticsecurity}. The architecture emphasizes separation of concerns between reasoning (LLM), action (tooling layer), and enforcement (security middleware), presenting a concrete blueprint for secure agent deployment in oppositional environments.
+
+Second, the project will produce a reusable adversarial benchmark suite for evaluating prompt-injection and tool-misuse attacks. While prior work documents attack feasibility \cite{greshake2023prompt}, there is limited availability of structured, reproducible evaluation harnesses for measuring defense performance among configurations. The benchmark developed here will include structured benign tasks, injection-based attacks, encoded exfiltration attempts, and tool-manipulation scenarios informed by threat taxonomies in recent surveys \cite{deng2025agentsurvey, chhabra2026agenticsecurity}. This evaluation suite can serve as a springboard for future experimentation and comparative study in agent security research.
+
+\textbf{Empirical Contributions.}
+This work will offer quantitative evidence comparing ML-assisted defenses against prompt-only and rule-based approaches. By measuring Attack Success Rate, secret leakage rate, unsafe tool invocation rate, and benign task achievement across multiple configurations, the evaluation will characterize the equilibrium between security and utility, an area that is still underexplored in current literature \cite{deng2025agentsurvey}. In addition, classifier effectiveness will be analyzed using Precision, Recall, and F1-score to assess detection robustness amidst obfuscation and adaptive attacks. Latency overhead introduced by security middleware will also be measured to evaluate deployment suitability in real-time agent systems.
+
+\textbf{Analytical Contributions.}
+Beyond reporting aggregate metrics, this project will conduct structured failure analysis across configurations. Comparative evaluation of no-defense, prompt-only, rule-based, and ML-assisted systems will identify conditions under which defenses succeed or fail. Particular attention will be paid to patterns in successful injection techniques, encoded payload strategies, and attempts to induce unauthorized tool use. By grounding the results in controlled experimentation, the project aims to move beyond conceptual threat discussions toward a systematic, evidence-based understanding of defense effectiveness in agentic LLM systems.
+
+Overall, SentinelAgent is designed to offer not only a practical system implementation but also a reproducible evaluation approach. This will benefit researchers, practitioners who deploy enterprise LLM agents, and developers who are looking for effective ways to secure autonomous systems working with untrusted content.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Risks and Contingency Plan}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+This project brings together retrieval, structured tool use, machine learning--based detection, and adversarial evaluation within a single experimental framework. Because of this integration, multiple technical and scope-related risks need to be addressed.
+
+A primary risk is that the injection detection model may not achieve sufficient performance, particularly if labeled training data is limited or if adversaries use diverse obfuscation strategies. Poor classifier effectiveness can lead to either excessive false positives that block benign content or false negatives that allow attacks to succeed. If the supervised model does not perform adequately, a fallback strategy will be implemented, combining stricter rule-based filtering and deterministic policy enforcement to guarantee measurable reductions in Attack Success Rate, even if learning-based robustness is limited.
+
+A second risk concerns the realism of the adversarial benchmark. Synthetic injection tasks may do not capture the full diversity of strategies used by real attackers. To reduce this, attack templates will be grounded in documented injection patterns and threat taxonomies from existing literature, and the benchmark will focus on controlled, reproducible test cases. If sufficient diversity cannot be achieved, the evaluation will focus on a smaller but carefully balanced task set to preserve internal validity.
+
+Engineering complexity also entails practical risks. Integrating middleware enforcement, structured logging, tool interfaces, and classification components may introduce unexpected implementation challenges. If integration overhead becomes prohibitive, the number of exposed tools will be reduced to a minimal but representative subset that still allows evaluation of injection and tool-misuse defenses. 
+
+Finally, if there are time or scope constraints, the project will focus on injection detection and strict policy enforcement as the main experimental components. Any features that cannot be included will be clearly documented. This contingency plan makes certain that the main research goal, which is to quantitatively measure the balance between security robustness and agent utility under a clearly defined threat model, remains within reach.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Work Plan and Timeline}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+Week & Task & Deliverable \\
+\midrule
+Week 7 & Finalize literature + threat model & Refined proposal submission \\
+Week 8 & Implement agent skeleton (RAG + basic tools) & Working agent prototype \\
+Week 9 & Implement logging + sandboxed tooling & Instrumented agent v0 \\
+Week 10 & Develop injection detection model & Trained classifier (baseline metrics) \\
+Week 11 & Integrate middleware enforcement layer & Security-enabled prototype v1 \\
+Week 12 & Construct adversarial benchmark suite & Benchmark dataset (benign + adversarial) \\
+Week 13 & Run experiments over baselines & Raw results + metric computation \\
+Week 14 & Analyze results + ablation study & Results draft + comparative analysis \\
+Week 15 & Finalize report + presentation & Final system, report, slides \\
+\bottomrule
+\end{tabular}
+\caption{Proposed development and evaluation timeline for SentinelAgent}
+\end{table}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Ethical Considerations}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+This project takes place entirely within tightly controlled, authorized environments. All experiments related to prompt injection and tool misuse are carried out using either synthetic or locally hosted adversarial content inside a sandboxed, containerized system. No external systems will be scanned, probed, or exploited at any stage. The \texttt{web\_fetch} tool operates only on a local sandbox server or on specifically allowed static domains, which prevents any unintended communication with outside networks. Simulated sensitive values, also known as ``canary tokens,'' are used solely for leakage detection and never represent real credentials or personal data.
+
+The evaluation dataset is made up of curated documents and adversarial examples that are generated synthetically. No private, proprietary, or personally identifiable information (PII) will be collected, processed, or stored at any point. All logging during experiments is focused on system operation and attack outcomes, with all logs kept strictly local to the research environment.
+
+This project is centered on defensive security evaluation, not on offensive exploitation. Attack templates are based on prompt-injection examples and survey findings that are publicly documented, making sure that all use is responsible. If any vulnerabilities are discovered in third-party tools or frameworks during development, they will only be disclosed following responsible reporting practices and in coordination with relevant maintainers when appropriate.
+
+Through strict sandboxing, the avoidance of real-world exploitation, and the use of synthetic evaluation artifacts, this project upholds ethical standards in cybersecurity research and makes certain that no harm comes to external systems or users as a result of experimentation.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+LLM agents that can look up information and use external tools bring up new cybersecurity risks, not just simple prompt tricks. Because these agents actually do things based on language input, attackers can try to affect both what the model says and what it does. This makes prompt injection a much bigger deal, since it could lead to unsafe actions or leak data. Most of the usual defenses, like prompt engineering or simple filters, haven't really been tested against tough, realistic attacks yet.
+
+My project is to build SentinelAgent, an LLM agent with safety checks at every step: filtering what it finds, tightly controlling tool use, and adding machine learning to spot prompt injection or leaks. I'll set up a clear threat model and create fair test tasks, both normal and adversarial. I'll measure things like attack success rate, secret leaks, unsafe tool use, and whether the agent can still do its job well.
+
+The main goal is to make an experimental setup that's easy to reproduce and actually puts these security defenses to the test. By comparing prompt rules, filtering, and ML-based detection, I want to show what really works for keeping agents safe without making them useless. In the end, SentinelAgent should give both a practical design and real data to help build safer, more reliable LLM agents.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{thebibliography}{9}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\bibitem{owasp_llm}
+OWASP Foundation, ``OWASP Top 10 for Large Language Model Applications,'' 2024. [Online]. Available: \url{https://owasp.org/www-project-top-10-for-large-language-model-applications/}
+
+\bibitem{greshake2023prompt}
+K. Greshake et al., ``Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection,'' in \textit{ACM CCS}, 2023.
+
+\bibitem{deng2025agentsurvey}
+G. Deng et al., ``A Survey on Agentic AI Security,'' \textit{arXiv preprint}, 2025.
+
+\bibitem{schroeder2025multiagent}
+D. Schroeder et al., ``Security Challenges in Multi-Agent LLM Systems,'' \textit{IEEE S\&P Workshops}, 2025.
+
+\bibitem{khan2024agenticthreats}
+M. Khan et al., ``Threat Taxonomy for Agentic AI Systems,'' \textit{ACM CCS}, 2024.
+
+\bibitem{chhabra2026agenticsecurity}
+A. Chhabra et al., ``Agentic AI Security: Threats and Defenses,'' \textit{USENIX Security}, 2026.
+
+\bibitem{cichonski2012computer}
+P. Cichonski et al., ``Computer Security Incident Handling Guide,'' NIST Special Publication 800-61 Rev. 2, 2012.
+
+\bibitem{nist_ai_rmf}
+NIST, ``Artificial Intelligence Risk Management Framework,'' NIST AI 100-1, 2023.
+
+\end{thebibliography}
+
+\end{document}
