@@ -1,0 +1,28 @@
+# Local environment files
+.env
+*.env
+
+# Python caches and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+sentinel-agent/backend/pytest-cache-files-*/
+
+# Frontend dependencies and build output
+app/node_modules/
+app/dist/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Packaged submissions
+*.zip
