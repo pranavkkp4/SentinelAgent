@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* SentinelAgent Dark Theme - Charcoal/Slate + Icy Blue + Violet Accent */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 221 39% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 263 70% 50%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 199 89% 48%;
+    --radius: 0.5rem;
+    
+    /* Custom SentinelAgent colors */
+    --sentinel-bg: #0F172A;
+    --sentinel-surface: #111827;
+    --sentinel-surface-alt: #1E293B;
+    --sentinel-primary: #38BDF8;
+    --sentinel-primary-hover: #22D3EE;
+    --sentinel-accent: #8B5CF6;
+    --sentinel-text: #F8FAFC;
+    --sentinel-text-muted: #94A3B8;
+    --sentinel-border: #334155;
+    --sentinel-success: #10B981;
+    --sentinel-warning: #F59E0B;
+    --sentinel-danger: #EF4444;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-[#0F172A] text-[#F8FAFC] antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#38BDF8] to-[#8B5CF6];
+  }
+  
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+  }
+  
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+  
+  .border-glow {
+    border: 1px solid rgba(56, 189, 248, 0.3);
+  }
+  
+  .glass {
+    @apply bg-[#111827]/80 backdrop-blur-xl;
+  }
+  
+  .card-surface {
+    @apply bg-[#111827] border border-[#1E293B] rounded-lg;
+  }
+  
+  .card-surface-alt {
+    @apply bg-[#1E293B] border border-[#334155] rounded-lg;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Animation keyframes */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(56, 189, 248, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.8);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
