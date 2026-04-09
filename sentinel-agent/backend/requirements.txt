@@ -1,0 +1,37 @@
+# SentinelAgent Backend Dependencies
+# Python 3.11+ required
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Data Validation
+pydantic==2.5.3
+
+# Machine Learning
+torch>=2.2.0
+transformers==4.36.2
+sentence-transformers==2.2.2
+scikit-learn==1.4.0
+numpy==1.26.3
+
+# Vector Search
+faiss-cpu==1.7.4
+
+# HTTP Client
+httpx==0.26.0
+
+# Environment & Configuration
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+
+# Monitoring (optional)
+prometheus-client==0.19.0
+
+# Utilities
+structlog==23.2.0
+jsonschema==4.20.0

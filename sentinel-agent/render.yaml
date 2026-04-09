@@ -1,0 +1,23 @@
+# Render Deployment Configuration
+# https://render.com/docs/deploy-fastapi
+
+services:
+  - type: web
+    name: sentinel-agent-api
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: LOG_LEVEL
+        value: INFO
+      - key: INJECTION_THRESHOLD
+        value: 0.7
+      - key: RISK_THRESHOLD
+        value: 0.8
+      - key: MAX_STEPS
+        value: 20
+    healthCheckPath: /health
+    autoDeploy: true
