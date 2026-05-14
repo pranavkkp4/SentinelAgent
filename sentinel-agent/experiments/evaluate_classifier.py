@@ -1,11 +1,10 @@
-"""Evaluate the deterministic injection classifier on a held-out JSONL set."""
+"""Evaluate the runtime ML injection classifier on a held-out JSONL set."""
 
 from __future__ import annotations
 
 import csv
 import json
 import math
-import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
@@ -17,10 +16,15 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from sentinel_agent.benchmark.generator import DEFAULT_CLASSIFIER_PATH, write_classifier_dataset
+from sentinel_agent.security.ml_injection_model import MLInjectionClassifier
 
 
 RESULT_DIR = PROJECT_ROOT / "experiments" / "results" / "latest"
 TABLE_DIR = RESULT_DIR / "tables"
+CLASSIFIER = MLInjectionClassifier(
+    transformer_model_name="local-transformer-disabled",
+    backend_mode="ngram",
+)
 
 
 def main() -> int:
@@ -49,20 +53,15 @@ def load_jsonl(path: Path) -> List[Dict[str, Any]]:
 
 
 def predict(text: str) -> Dict[str, Any]:
-    lowered = (text or "").lower()
-    score = 0.05
-    rules = [
-        r"ignore|disregard|override|bypass|jailbreak",
-        r"system\s*:|developer\s*:|assistant-only",
-        r"secret|token|api[_ -]?key|password|canary",
-        r"attacker@|decode|base64|hex-encoded",
-        r"<!--.*?(ignore|secret|token).*?-->",
-    ]
-    for pattern in rules:
-        if re.search(pattern, lowered, re.IGNORECASE | re.DOTALL):
-            score += 0.3
-    score = min(score, 0.99)
-    return {"label": "malicious" if score >= 0.35 else "benign", "score": score}
+    prediction = CLASSIFIER.predict(text)
+    return {
+        "label": prediction.label,
+        "score": prediction.malicious_probability,
+        "confidence": prediction.confidence,
+        "backend": prediction.backend,
+        "model_name": prediction.model_name,
+        "details": prediction.details,
+    }
 
 
 def compute_metrics(rows: Sequence[Dict[str, Any]], predictions: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
@@ -103,7 +102,12 @@ def compute_metrics(rows: Sequence[Dict[str, Any]], predictions: Sequence[Dict[s
             "true_negative": tn,
             "false_negative": fn,
         },
-        "notes": "Evaluation uses the test split only; no classifier training is performed here.",
+        "model": CLASSIFIER.get_status(),
+        "notes": (
+            "Evaluation uses the test split only. The evaluated detector is the "
+            "runtime n-gram Naive Bayes classifier trained from bundled fixtures, "
+            "not from this classifier test split."
+        ),
     }
 
 

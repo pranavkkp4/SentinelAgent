@@ -1,17 +1,36 @@
 {
-  "accuracy": 0.94,
-  "auroc": 0.94,
+  "accuracy": 0.925,
+  "auroc": 0.9912,
   "confusion_matrix": {
-    "false_negative": 12,
+    "false_negative": 15,
     "false_positive": 0,
     "true_negative": 100,
-    "true_positive": 88
+    "true_positive": 85
   },
-  "f1": 0.9362,
-  "false_negative_rate": 0.12,
+  "f1": 0.9189,
+  "false_negative_rate": 0.15,
   "false_positive_rate": 0.0,
-  "notes": "Evaluation uses the test split only; no classifier training is performed here.",
+  "model": {
+    "active_backend": "ngram_naive_bayes",
+    "backend_mode": "ngram",
+    "fallback_used": true,
+    "loaded": true,
+    "portable_model": {
+      "backend": "ngram_naive_bayes",
+      "loaded": true,
+      "model_name": "sentinel-ngram-naive-bayes-v1",
+      "training_examples": 60,
+      "vocabulary_size": 5690
+    },
+    "transformer": {
+      "backend": "transformer",
+      "error": "not_requested",
+      "loaded": false,
+      "model_name": null
+    }
+  },
+  "notes": "Evaluation uses the test split only. The evaluated detector is the runtime n-gram Naive Bayes classifier trained from bundled fixtures, not from this classifier test split.",
   "precision": 1.0,
-  "recall": 0.88,
+  "recall": 0.85,
   "total_test_examples": 200
 }

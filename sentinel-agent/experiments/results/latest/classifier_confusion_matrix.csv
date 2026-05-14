@@ -1,5 +1,5 @@
 cell,count
-true_positive,88
+true_positive,85
 false_positive,0
 true_negative,100
-false_negative,12
+false_negative,15
