@@ -14,6 +14,8 @@ def run_tests():
     args = [
         "-v",
         "--tb=short",
+        "-p",
+        "no:cacheprovider",
         "tests/"
     ]
     
