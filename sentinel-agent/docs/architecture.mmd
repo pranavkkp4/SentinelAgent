@@ -1,0 +1,35 @@
+flowchart TD
+  U[User or evaluator] --> API[FastAPI API routes]
+  API --> ORCH[Agent orchestrator]
+
+  ORCH --> RET[Retrieval subsystem]
+  RET --> CHUNKS[Retrieved chunks]
+  CHUNKS --> INJ[Injection detector]
+  INJ --> CTX[Admitted or quarantined context]
+  CTX --> ORCH
+
+  ORCH --> POLICY[Security middleware]
+  POLICY --> TOOLRISK[Tool-risk classifier]
+  TOOLRISK --> TOOLS[Controlled tool registry]
+  TOOLS --> OBS[Tool observations]
+  OBS --> INJ
+
+  ORCH --> RELEASE[Response release check]
+  RELEASE --> EXFIL[Exfiltration detector]
+  EXFIL --> RESP[Safe, sanitized, or blocked response]
+
+  POLICY --> LOGS[Security decision log]
+  INJ --> LOGS
+  EXFIL --> LOGS
+
+  subgraph Trust_Boundaries[Trust boundaries]
+    INPUT[Input boundary]
+    CONTEXT[Context boundary]
+    ACTION[Action boundary]
+    OUTPUT[Release boundary]
+  end
+
+  INPUT -.-> API
+  CONTEXT -.-> INJ
+  ACTION -.-> TOOLRISK
+  OUTPUT -.-> EXFIL
