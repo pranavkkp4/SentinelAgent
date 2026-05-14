@@ -12,6 +12,7 @@ from enum import Enum
 
 from ..models import TaskResult, TaskStatus, ToolCall, Document, SecurityCheck
 from ..security import SecurityMiddleware
+from ..security.defense_profiles import get_defense_profile
 from ..retrieval import RetrievalSubsystem
 from ..tools import ToolRegistry, create_default_tools
 from ..config import config
@@ -54,6 +55,7 @@ class ExecutionContext:
             "observations": self.observations,
             "memory": self.memory,
             "task_type": self.memory.get("task_type", ""),
+            "defense_config": self.memory.get("defense_config", ""),
         }
 
 
@@ -86,18 +88,26 @@ class AgentOrchestrator:
         self.execution_history: List[TaskResult] = []
         self.canary_tokens = config.security.canary_tokens
     
-    async def execute(self, query: str, enable_defense: bool = True) -> TaskResult:
+    async def execute(
+        self,
+        query: str,
+        enable_defense: bool = True,
+        defense_config: str = "ml-assisted",
+    ) -> TaskResult:
         """
         Execute a user query through the agent.
         
         Args:
             query: User query
             enable_defense: Whether to enable security middleware
+            defense_config: Named defense profile for evaluation/demo metadata
             
         Returns:
             TaskResult with execution results
         """
         start_time = time.time()
+        profile = get_defense_profile(defense_config, enable_defense=enable_defense)
+        effective_detection = enable_defense and profile.enable_detection
         
         # Initialize execution context
         context = ExecutionContext(
@@ -106,6 +116,8 @@ class AgentOrchestrator:
             memory={
                 "canary_tokens": self.canary_tokens,
                 "task_type": self._infer_task_type(query),
+                "defense_config": profile.name,
+                "defense_profile": profile.label,
             }
         )
         
@@ -113,6 +125,25 @@ class AgentOrchestrator:
             query=query,
             status=TaskStatus.RUNNING
         )
+
+        if effective_detection:
+            input_check = self.security.injection_detector.detect(
+                query,
+                context=profile.to_detection_context(source="user_query"),
+            )
+            result.security_checks.append(input_check)
+            context.security_checks.append(input_check)
+
+            if profile.enforce_input and input_check.details.get("security_level") == "malicious":
+                result.blocked = True
+                result.block_reason = "Malicious query detected before execution"
+                result.status = TaskStatus.BLOCKED
+                result.response = "[Query blocked due to malicious input]"
+                result.steps_taken = context.step_count
+                result.execution_time_ms = (time.time() - start_time) * 1000
+                result.metrics = self._compute_metrics(context)
+                self.execution_history.append(result)
+                return result
         
         try:
             # Main execution loop
@@ -127,20 +158,30 @@ class AgentOrchestrator:
                     response = await self._generate_response(context)
                     
                     # Screen response if defense enabled
-                    if enable_defense:
-                        response, check = self.security.screen_response(
-                            response, context.tool_calls
+                    if effective_detection and profile.use_exfiltration_detector:
+                        screened_response, check = self.security.screen_response(
+                            response,
+                            context.tool_calls,
+                            enforce=profile.enforce_response,
+                            profile=profile,
                         )
                         context.security_checks.append(check)
                         result.security_checks.append(check)
-                        
-                        release_decision = self.security.make_release_decision(response, check)
-                        
-                        if not release_decision.allow:
-                            result.blocked = True
-                            result.block_reason = release_decision.reason
-                            result.status = TaskStatus.BLOCKED
-                            response = "[Response blocked due to security concerns]"
+
+                        if profile.enforce_response:
+                            response = screened_response
+                            release_decision = self.security.make_release_decision(
+                                response,
+                                check,
+                                enforce=profile.enforce_response,
+                                profile=profile,
+                            )
+
+                            if not release_decision.allow:
+                                result.blocked = True
+                                result.block_reason = release_decision.reason
+                                result.status = TaskStatus.BLOCKED
+                                response = "[Response blocked due to security concerns]"
                     
                     result.response = response
                     if result.status != TaskStatus.BLOCKED:
@@ -151,7 +192,8 @@ class AgentOrchestrator:
                     # Retrieve documents
                     docs, checks = await self._retrieve_documents(
                         action.get("query", query),
-                        enable_defense
+                        effective_detection,
+                        profile,
                     )
                     context.retrieved_documents.extend(docs)
                     context.security_checks.extend(checks)
@@ -164,7 +206,7 @@ class AgentOrchestrator:
                         action.get("tool_name"),
                         action.get("arguments", {}),
                         context,
-                        enable_defense
+                        profile
                     )
                     
                     if tool_result:
@@ -257,8 +299,12 @@ class AgentOrchestrator:
         # Default: respond
         return {"type": "respond"}
     
-    async def _retrieve_documents(self, query: str, 
-                                   enable_defense: bool) -> tuple[List[Document], List[SecurityCheck]]:
+    async def _retrieve_documents(
+        self,
+        query: str,
+        enable_defense: bool,
+        profile,
+    ) -> tuple[List[Document], List[SecurityCheck]]:
         """Retrieve and screen documents."""
         # Retrieve documents
         result = self.retrieval.retrieve(query)
@@ -267,12 +313,17 @@ class AgentOrchestrator:
             return result.documents, []
         
         # Screen with security middleware
-        filtered_docs, checks = self.security.screen_retrieved_content(result.documents)
+        filtered_docs, checks = self.security.screen_retrieved_content(
+            result.documents,
+            detector_mode=profile.detector_mode,
+            enforce=profile.enforce_retrieval,
+            profile=profile,
+        )
         
         return filtered_docs, checks
     
     async def _execute_tool(self, tool_name: str, arguments: Dict,
-                           context: ExecutionContext, enable_defense: bool) -> Optional[ToolCall]:
+                           context: ExecutionContext, profile) -> Optional[ToolCall]:
         """Execute a tool with security checks."""
         # Get tool
         tool = self.tools.get(tool_name)
@@ -297,28 +348,40 @@ class AgentOrchestrator:
             )
         
         # Security evaluation
-        if enable_defense:
+        if profile.enable_detection and (
+            profile.use_tool_risk_classifier or profile.use_exfiltration_detector
+        ):
             tool_call = self.security.evaluate_tool_call(
-                tool_name, arguments, context.to_dict()
+                tool_name,
+                arguments,
+                context.to_dict(),
+                use_exfiltration_detector=profile.use_exfiltration_detector,
+                enforce=profile.enforce_tools,
+                use_tool_risk_classifier=profile.use_tool_risk_classifier,
+                profile=profile,
             )
             
-            if not tool_call.allowed:
+            if not tool_call.allowed and profile.enforce_tools:
                 return tool_call
         else:
             tool_call = ToolCall(
                 tool_name=tool_name,
                 arguments=arguments,
                 allowed=True,
-                reason="Defense disabled",
+                reason=(
+                    "Defense disabled"
+                    if not profile.enable_detection
+                    else "Tool-risk classifier disabled by defense profile"
+                ),
                 risk_score=0.0
             )
         
         # Execute tool
         try:
             tool_result = await tool.execute(**arguments)
-            tool_call.metadata = {"result": tool_result.to_dict()}
+            tool_call.metadata["result"] = tool_result.to_dict()
         except Exception as e:
-            tool_call.metadata = {"error": str(e)}
+            tool_call.metadata["error"] = str(e)
         
         return tool_call
     
