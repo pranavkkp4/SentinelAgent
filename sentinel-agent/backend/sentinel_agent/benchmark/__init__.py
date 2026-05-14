@@ -13,6 +13,11 @@ from .attacks import (
     AttackBenchmark
 )
 from .evaluator import EvaluationConfig, SentinelEvaluator
+from .tool_risk_benchmark import ToolRiskBenchmark, ToolRiskCase, create_tool_risk_cases
+from .generator import generate_benchmark, write_benchmark, write_classifier_dataset
+from .adaptive_attacks import generate_adaptive_attacks, write_adaptive_attacks
+
+build_tool_risk_cases = create_tool_risk_cases
 
 __all__ = [
     "AttackPayload",
@@ -26,5 +31,14 @@ __all__ = [
     "create_adversarial_document",
     "AttackBenchmark",
     "EvaluationConfig",
-    "SentinelEvaluator"
+    "SentinelEvaluator",
+    "ToolRiskBenchmark",
+    "ToolRiskCase",
+    "build_tool_risk_cases",
+    "create_tool_risk_cases",
+    "generate_benchmark",
+    "write_benchmark",
+    "write_classifier_dataset",
+    "generate_adaptive_attacks",
+    "write_adaptive_attacks",
 ]
