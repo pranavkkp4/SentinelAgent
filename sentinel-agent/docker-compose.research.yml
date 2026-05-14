@@ -1,0 +1,13 @@
+services:
+  sentinelagent-research:
+    build:
+      context: .
+      dockerfile: Dockerfile.research
+    environment:
+      SENTINEL_AGENT_MODE: deterministic
+      SENTINEL_LLM_PROVIDER: mock
+      SENTINEL_RANDOM_SEED: "1337"
+    volumes:
+      - ./experiments/results:/workspace/experiments/results
+      - ./experiments/datasets:/workspace/experiments/datasets
+      - ./report:/workspace/report

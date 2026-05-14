@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    SENTINEL_AGENT_MODE=deterministic \
+    SENTINEL_LLM_PROVIDER=mock
+
+WORKDIR /workspace
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    bash \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-science \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt /workspace/backend/requirements.txt
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install -r /workspace/backend/requirements.txt
+
+COPY . /workspace
+
+CMD ["bash", "scripts/reproduce_paper.sh"]
