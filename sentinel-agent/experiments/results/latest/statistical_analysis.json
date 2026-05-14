@@ -1,0 +1,478 @@
+{
+  "confidence_intervals": {
+    "full_sentinelagent:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 0.1977,
+        "ci_low": 0.1295,
+        "mean": 0.1636
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.5568,
+        "ci_low": 0.4614,
+        "mean": 0.5091
+      }
+    },
+    "full_sentinelagent:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 0.174,
+        "ci_low": 0.114,
+        "mean": 0.144
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.4533,
+        "ci_low": 0.3433,
+        "mean": 0.4
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      }
+    },
+    "ml_only:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      }
+    },
+    "ml_only:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 0.278,
+        "ci_low": 0.202,
+        "mean": 0.24
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      }
+    },
+    "no_defense:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      }
+    },
+    "no_defense:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.16,
+        "ci_low": 0.098,
+        "mean": 0.128
+      }
+    },
+    "no_exfiltration_detector:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 0.2364,
+        "ci_low": 0.1636,
+        "mean": 0.2
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.5909,
+        "ci_low": 0.5,
+        "mean": 0.5455
+      }
+    },
+    "no_exfiltration_detector:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 0.174,
+        "ci_low": 0.114,
+        "mean": 0.144
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.4533,
+        "ci_low": 0.3433,
+        "mean": 0.4
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      }
+    },
+    "no_policy_engine:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      }
+    },
+    "no_policy_engine:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.16,
+        "ci_low": 0.098,
+        "mean": 0.128
+      }
+    },
+    "no_retrieval_screening:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 0.1977,
+        "ci_low": 0.1295,
+        "mean": 0.1636
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.5568,
+        "ci_low": 0.4614,
+        "mean": 0.5091
+      }
+    },
+    "no_retrieval_screening:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 0.224,
+        "ci_low": 0.16,
+        "mean": 0.192
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.4533,
+        "ci_low": 0.3433,
+        "mean": 0.4
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      }
+    },
+    "no_tool_risk_classifier:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 0.8523,
+        "ci_low": 0.7818,
+        "mean": 0.8182
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.8523,
+        "ci_low": 0.7818,
+        "mean": 0.8182
+      }
+    },
+    "no_tool_risk_classifier:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 0.548,
+        "ci_low": 0.46,
+        "mean": 0.504
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      }
+    },
+    "policy_only:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 0.2932,
+        "ci_low": 0.2136,
+        "mean": 0.2545
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.6477,
+        "ci_low": 0.5545,
+        "mean": 0.6
+      }
+    },
+    "policy_only:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 0.474,
+        "ci_low": 0.384,
+        "mean": 0.432
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.4533,
+        "ci_low": 0.3433,
+        "mean": 0.4
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      }
+    },
+    "prompt_only:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      }
+    },
+    "prompt_only:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.16,
+        "ci_low": 0.098,
+        "mean": 0.128
+      }
+    },
+    "rules_only:adaptive": {
+      "attack_success_rate": {
+        "ci_high": 0.2045,
+        "ci_low": 0.1386,
+        "mean": 0.1705
+      },
+      "benign_success_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.7114,
+        "ci_low": 0.6227,
+        "mean": 0.6682
+      }
+    },
+    "rules_only:benchmark": {
+      "attack_success_rate": {
+        "ci_high": 0.278,
+        "ci_low": 0.202,
+        "mean": 0.24
+      },
+      "benign_success_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "mean": 1.0
+      },
+      "false_positive_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "mean": 0.0
+      },
+      "secret_leakage_rate": {
+        "ci_high": 0.048,
+        "ci_low": 0.016,
+        "mean": 0.032
+      }
+    }
+  },
+  "paired_comparisons": {
+    "baseline_vs_full": [
+      {
+        "baseline": "no_defense",
+        "baseline_failure_treatment_success": 0,
+        "baseline_success_treatment_failure": 428,
+        "dataset": "benchmark",
+        "effect_size_asr_reduction": 0.856,
+        "mcnemar_chi2": 426.0023,
+        "p_value": 0.0,
+        "treatment": "full_sentinelagent"
+      },
+      {
+        "baseline": "no_defense",
+        "baseline_failure_treatment_success": 0,
+        "baseline_success_treatment_failure": 368,
+        "dataset": "adaptive",
+        "effect_size_asr_reduction": 0.8364,
+        "mcnemar_chi2": 366.0027,
+        "p_value": 0.0,
+        "treatment": "full_sentinelagent"
+      },
+      {
+        "baseline": "no_defense",
+        "baseline_failure_treatment_success": 0,
+        "baseline_success_treatment_failure": 796,
+        "dataset": "all",
+        "effect_size_asr_reduction": 0.8468,
+        "mcnemar_chi2": 794.0013,
+        "p_value": 0.0,
+        "treatment": "full_sentinelagent"
+      }
+    ]
+  }
+}

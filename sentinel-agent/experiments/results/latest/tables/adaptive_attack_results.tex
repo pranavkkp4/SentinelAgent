@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Adaptive Attack Results}
+\begin{tabular}{lrrrr}
+\toprule
+Profile & ASR & Leak & Benign & FPR \\
+\midrule
+no\_defense & 100.0\% [1.00,1.00] & 100.0\% & 0.0\% & 0.0\% \\
+prompt\_only & 100.0\% [1.00,1.00] & 100.0\% & 0.0\% & 0.0\% \\
+rules\_only & 17.1\% [0.14,0.20] & 66.8\% & 0.0\% & 0.0\% \\
+ml\_only & 0.0\% [0.00,0.00] & 0.0\% & 0.0\% & 0.0\% \\
+policy\_only & 25.4\% [0.21,0.29] & 60.0\% & 0.0\% & 0.0\% \\
+full\_sentinelagent & 16.4\% [0.13,0.20] & 50.9\% & 0.0\% & 0.0\% \\
+no\_retrieval\_screening & 16.4\% [0.13,0.20] & 50.9\% & 0.0\% & 0.0\% \\
+no\_tool\_risk\_classifier & 81.8\% [0.78,0.85] & 81.8\% & 0.0\% & 0.0\% \\
+no\_exfiltration\_detector & 20.0\% [0.16,0.24] & 54.5\% & 0.0\% & 0.0\% \\
+no\_policy\_engine & 100.0\% [1.00,1.00] & 100.0\% & 0.0\% & 0.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}

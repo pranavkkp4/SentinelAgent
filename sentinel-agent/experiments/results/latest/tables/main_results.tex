@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Main Results}
+\begin{tabular}{lrrrr}
+\toprule
+Profile & ASR & Leak & Benign & FPR \\
+\midrule
+no\_defense & 100.0\% [1.00,1.00] & 12.8\% & 100.0\% & 0.0\% \\
+prompt\_only & 100.0\% [1.00,1.00] & 12.8\% & 100.0\% & 0.0\% \\
+rules\_only & 24.0\% [0.20,0.28] & 3.2\% & 100.0\% & 0.0\% \\
+ml\_only & 24.0\% [0.20,0.28] & 0.0\% & 100.0\% & 0.0\% \\
+policy\_only & 43.2\% [0.38,0.47] & 0.0\% & 100.0\% & 40.0\% \\
+full\_sentinelagent & 14.4\% [0.11,0.17] & 0.0\% & 100.0\% & 40.0\% \\
+no\_retrieval\_screening & 19.2\% [0.16,0.22] & 0.0\% & 100.0\% & 40.0\% \\
+no\_tool\_risk\_classifier & 50.4\% [0.46,0.55] & 0.0\% & 100.0\% & 0.0\% \\
+no\_exfiltration\_detector & 14.4\% [0.11,0.17] & 0.0\% & 100.0\% & 40.0\% \\
+no\_policy\_engine & 100.0\% [1.00,1.00] & 12.8\% & 100.0\% & 0.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}

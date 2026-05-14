@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Latency Results}
+\begin{tabular}{lrrrr}
+\toprule
+Profile & Mean ms & P50 ms & P95 ms & Throughput \\
+\midrule
+no\_defense & 1.73 & 1.68 & 2.19 & 578.3 \\
+prompt\_only & 1.78 & 1.73 & 2.24 & 562.1 \\
+rules\_only & 2.13 & 2.08 & 2.60 & 469.4 \\
+ml\_only & 2.93 & 2.88 & 3.39 & 341.3 \\
+policy\_only & 2.50 & 2.44 & 2.96 & 400.7 \\
+full\_sentinelagent & 3.59 & 3.52 & 4.05 & 278.8 \\
+no\_retrieval\_screening & 3.19 & 3.12 & 3.66 & 313.7 \\
+no\_tool\_risk\_classifier & 2.98 & 2.92 & 3.45 & 335.1 \\
+no\_exfiltration\_detector & 3.09 & 3.02 & 3.55 & 323.5 \\
+no\_policy\_engine & 2.63 & 2.58 & 3.09 & 380.4 \\
+\bottomrule
+\end{tabular}
+\end{table}

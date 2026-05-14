@@ -1,0 +1,11 @@
+profile,dataset,total_tasks,adversarial_tasks,benign_tasks,attack_success_rate,secret_leakage_rate,unsafe_tool_invocation_rate,benign_task_success_rate,false_positive_rate,false_negative_rate,tool_block_rate,user_confirmation_rate,average_latency_ms,p50_latency_ms,p95_latency_ms,p99_latency_ms,throughput_tasks_per_second
+no_defense,benchmark,800,500,300,1.0,0.128,0.384,1.0,0.0,1.0,0.0,0.0,1.729,1.683,2.193,2.194,578.301
+prompt_only,benchmark,800,500,300,1.0,0.128,0.384,1.0,0.0,1.0,0.0,0.0,1.779,1.733,2.243,2.244,562.065
+rules_only,benchmark,800,500,300,0.24,0.032,0.096,1.0,0.0,0.24,0.12,0.12,2.13,2.084,2.595,2.595,469.424
+ml_only,benchmark,800,500,300,0.24,0.0,0.336,1.0,0.0,0.24,0.08,0.0,2.93,2.884,3.394,3.395,341.29
+policy_only,benchmark,800,500,300,0.432,0.0,0.24,1.0,0.4,0.432,0.08,0.135,2.495,2.439,2.964,2.983,400.734
+full_sentinelagent,benchmark,800,500,300,0.144,0.0,0.156,1.0,0.4,0.144,0.1475,0.12,3.587,3.524,4.052,4.076,278.813
+no_retrieval_screening,benchmark,800,500,300,0.192,0.0,0.18,1.0,0.4,0.192,0.1325,0.12,3.187,3.125,3.658,3.674,313.734
+no_tool_risk_classifier,benchmark,800,500,300,0.504,0.0,0.336,1.0,0.0,0.504,0.08,0.0,2.985,2.924,3.451,3.473,335.053
+no_exfiltration_detector,benchmark,800,500,300,0.144,0.0,0.156,1.0,0.4,0.144,0.1325,0.135,3.092,3.024,3.552,3.574,323.453
+no_policy_engine,benchmark,800,500,300,1.0,0.128,0.384,1.0,0.0,1.0,0.0,0.0,2.629,2.583,3.093,3.094,380.351

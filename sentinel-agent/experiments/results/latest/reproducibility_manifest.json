@@ -1,0 +1,31 @@
+{
+  "api_keys_required": false,
+  "datasets": {
+    "adaptive": "experiments/datasets/sentinelagent_adaptive_v1.jsonl",
+    "benchmark": "experiments\\datasets\\sentinelagent_benchmark_v1.jsonl",
+    "classifier": "experiments\\datasets\\injection_classifier_eval_v1.jsonl"
+  },
+  "outputs": [
+    "experiments/results/latest/per_task_results.jsonl",
+    "experiments/results/latest/aggregate_metrics.csv",
+    "experiments/results/latest/aggregate_metrics.json",
+    "experiments/results/latest/ablation_table.csv",
+    "experiments/results/latest/latency_table.csv",
+    "experiments/results/latest/error_analysis.md",
+    "experiments/results/latest/environment.json"
+  ],
+  "profiles": [
+    "no_defense",
+    "prompt_only",
+    "rules_only",
+    "ml_only",
+    "policy_only",
+    "full_sentinelagent",
+    "no_retrieval_screening",
+    "no_tool_risk_classifier",
+    "no_exfiltration_detector",
+    "no_policy_engine"
+  ],
+  "random_seed": 1337,
+  "timestamp": "2026-05-13T18:17:30.060478+00:00"
+}

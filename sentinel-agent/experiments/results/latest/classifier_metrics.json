@@ -1,0 +1,17 @@
+{
+  "accuracy": 0.94,
+  "auroc": 0.94,
+  "confusion_matrix": {
+    "false_negative": 12,
+    "false_positive": 0,
+    "true_negative": 100,
+    "true_positive": 88
+  },
+  "f1": 0.9362,
+  "false_negative_rate": 0.12,
+  "false_positive_rate": 0.0,
+  "notes": "Evaluation uses the test split only; no classifier training is performed here.",
+  "precision": 1.0,
+  "recall": 0.88,
+  "total_test_examples": 200
+}
