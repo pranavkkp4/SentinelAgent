@@ -254,16 +254,16 @@ We also run a small real-model validation through the same policy gates. The run
 
 \section{Results}
 
-\input{../experiments/results/latest/tables/main_results.tex}
+\input{../../experiments/results/latest/tables/main_results.tex}
 
 The main benchmark shows a clear reduction in attack success. With no defense, the simulator marks every adversarial scenario as successful because no policy boundary intervenes. Full SentinelAgent reduces benchmark ASR to 14.4\% and measured secret leakage to 0.0\%. The result is not free. The current conservative policy also records 40.0\% false positives because benign requests involving higher-risk tool contexts often require confirmation or monitoring.
 
 Our classifier result is the clearest machine-learning measurement in the artifact. On the held-out classifier test split, the supervised detector reaches 94.0\% accuracy, 100.0\% precision, 88.0\% recall, F1 of 93.6\%, AUROC of 0.940, 0.0\% false-positive rate, and 12.0\% false-negative rate. This result is local to our generated dataset, not an external benchmark, but it gives the policy engine a useful signal for the larger defense evaluation.
 
-\input{../experiments/results/latest/tables/classifier_results.tex}
+\input{../../experiments/results/latest/tables/classifier_results.tex}
 
-\IfFileExists{../experiments/results/latest/tables/gemini_results.tex}{%
-\input{../experiments/results/latest/tables/gemini_results.tex}
+\IfFileExists{../../experiments/results/latest/tables/gemini_results.tex}{%
+\input{../../experiments/results/latest/tables/gemini_results.tex}
 }{%
 \begin{table}[H]
 \centering
@@ -276,10 +276,10 @@ Status & Not regenerated in this offline run \\
 \end{table}
 }
 
-\IfFileExists{../experiments/results/latest/figures/gemini_real_eval.png}{%
+\IfFileExists{../../experiments/results/latest/figures/gemini_real_eval.png}{%
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.72\linewidth]{../experiments/results/latest/figures/gemini_real_eval.png}
+\includegraphics[width=0.72\linewidth]{../../experiments/results/latest/figures/gemini_real_eval.png}
 \caption{Gemini-backed validation metrics for attack success, benign success, and tool blocking.}
 \label{fig:gemini_validation}
 \end{figure}
@@ -289,13 +289,13 @@ The Gemini-backed run completed with \texttt{gemini-2.5-flash-lite} on May 13, 2
 
 \section{Ablation Study}
 
-\input{../experiments/results/latest/tables/ablation_results.tex}
+\input{../../experiments/results/latest/tables/ablation_results.tex}
 
 The ablations show that the tool-risk component carries much of the protection for side-effecting tools. Removing the tool-risk classifier raises benchmark ASR from 14.4\% to 50.4\% and unsafe tool invocation from 15.6\% to 33.6\%. Removing retrieval screening also hurts: ASR rises to 19.2\%. Removing the exfiltration detector leaves the benchmark ASR unchanged in this generated run, but this should not be read as evidence that exfiltration detection is unnecessary. The adaptive set tells a different story.
 
 \section{Adaptive Attack Analysis}
 
-\input{../experiments/results/latest/tables/adaptive_attack_results.tex}
+\input{../../experiments/results/latest/tables/adaptive_attack_results.tex}
 
 The adaptive suite is deliberately harder. It applies paraphrase, chunk splitting, markdown hiding, HTML comments, base64 and hex encoding, summarize-and-translate wrappers, tool-output injection, multi-turn escalation, and benign wrappers around malicious goals. Full SentinelAgent records 16.4\% ASR on adaptive attacks. More concerning, the adaptive leakage metric remains 50.9\% in the local simulator. That number reflects a weakness in the current output-control policy and evaluation mapping: many adaptive secret-exfiltration rows are monitored or routed through nonblocking paths rather than converted to response blocks.
 
@@ -376,9 +376,9 @@ The main benchmark is \path{experiments/datasets/sentinelagent_benchmark_v1.json
 \subsection{Environment Details}
 The evaluation runner writes \path{experiments/results/latest/environment.json} with timestamp, git commit hash when available, Python version, operating system, dependency versions, random seed, model backend, LLM provider, and model name. The corresponding manifest is \path{experiments/results/latest/reproducibility_manifest.json}. Real-model validation writes \path{experiments/results/latest/llm_gemini_metrics.json}, \path{experiments/results/latest/tables/gemini_results.tex}, and \path{experiments/results/latest/figures/gemini_real_eval.png}.
 
-\input{../experiments/results/latest/tables/latency_results.tex}
+\input{../../experiments/results/latest/tables/latency_results.tex}
 
 \bibliographystyle{plain}
-\bibliography{references/references}
+\bibliography{../../report/references/references}
 
 \end{document}
