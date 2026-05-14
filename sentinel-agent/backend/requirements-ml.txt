@@ -1,0 +1,15 @@
+# Optional local transformer/retrieval accelerators for SentinelAgent.
+#
+# The application works without these packages by using the bundled supervised
+# injection classifier plus built-in fallback embedding and vector-search
+# implementations. These pins are kept separate because the transformer,
+# FAISS, and sentence-transformers stack is not available for every Python
+# version, including the Python 3.14 verification venv.
+
+-r requirements.txt
+
+torch>=2.2.0; python_version < "3.12"
+transformers==4.36.2; python_version < "3.12"
+sentence-transformers==2.2.2; python_version < "3.12"
+scikit-learn==1.4.0; python_version < "3.12"
+faiss-cpu==1.7.4; python_version < "3.12"

@@ -11,6 +11,12 @@ from dataclasses import dataclass
 
 from ..models import SecurityLevel, SecurityCheck
 from ..config import config
+from .embedding_similarity_detector import (
+    EmbeddingSimilarityDetector,
+    EmbeddingSimilarityPrediction,
+)
+from .llm_judge import LLMJudgeResult, StubLLMJudge
+from .ml_injection_model import MLInjectionClassifier, InjectionModelPrediction
 
 
 @dataclass
@@ -27,9 +33,9 @@ class InjectionDetector:
     ML-based injection detection model.
     
     Uses a combination of:
-    1. Rule-based pattern matching for known attacks
-    2. Statistical features for anomaly detection
-    3. ML classifier (when trained) for semantic understanding
+    1. Supervised ML classifier for semantic injection detection
+    2. Rule-based pattern matching as deterministic guardrails
+    3. Statistical features for anomaly detection and tie-breaking
     """
     
     # Known injection patterns
@@ -123,17 +129,56 @@ class InjectionDetector:
     def __init__(self):
         self.patterns = self.INJECTION_PATTERNS
         self.ml_model = None
-        self.vectorizer = None
+        self.embedding_detector = None
+        self.llm_judge = StubLLMJudge()
         self._load_ml_model()
     
     def _load_ml_model(self):
-        """Load pre-trained ML model if available."""
+        """Load the configured prompt-injection ML model."""
         try:
-            # In a real implementation, this would load a trained transformer model
-            # For demo purposes, we'll use the rule-based approach with statistical features
+            self.ml_model = MLInjectionClassifier(
+                transformer_model_name=config.security.injection_model_name,
+                backend_mode=config.security.injection_model_backend,
+                require_transformer=config.security.require_transformer_injection_model,
+            )
+        except Exception as exc:
+            if config.security.require_transformer_injection_model:
+                raise
+            print(f"Warning: Could not initialize injection ML model: {exc}")
             self.ml_model = None
-        except Exception:
-            self.ml_model = None
+
+    def get_model_status(self) -> Dict[str, object]:
+        """Expose model loading status for API health checks and reporting."""
+        if self.ml_model is None:
+            return {
+                "loaded": False,
+                "active_backend": "unavailable",
+                "fallback_used": True,
+            }
+        return self.ml_model.get_status()
+
+    def _score_with_ml(self, text: str) -> InjectionModelPrediction:
+        """Run the supervised injection classifier with a safe fallback."""
+        if self.ml_model is None:
+            return InjectionModelPrediction(
+                label="benign",
+                malicious_probability=0.0,
+                confidence=0.0,
+                backend="unavailable",
+                model_name="none",
+                details={"error": "model_not_loaded"},
+            )
+        return self.ml_model.predict(text)
+
+    def _score_with_embedding_similarity(self, text: str) -> EmbeddingSimilarityPrediction:
+        """Run the embedding-similarity detector with lazy initialization."""
+        if self.embedding_detector is None:
+            self.embedding_detector = EmbeddingSimilarityDetector()
+        return self.embedding_detector.predict(text)
+
+    def _score_with_llm_judge(self, text: str, context: Dict) -> LLMJudgeResult:
+        """Run the configured LLM judge implementation."""
+        return self.llm_judge.judge(text, context)
     
     def _extract_statistical_features(self, text: str) -> Dict[str, float]:
         """Extract statistical features from text."""
@@ -210,12 +255,88 @@ class InjectionDetector:
                 details={"reason": "Empty text"}
             )
         
+        detector_context = context or {}
+        detector_mode = detector_context.get("detector_mode", "ml-assisted")
+        use_ml = bool(
+            detector_context.get(
+                "use_ml_classifier",
+                detector_mode not in {
+                    "rule-based",
+                    "rules-only",
+                    "prompt-only",
+                    "embedding-similarity",
+                    "llm-as-judge",
+                },
+            )
+        )
+        use_patterns = bool(
+            detector_context.get(
+                "use_rule_guardrails",
+                detector_mode not in {"ml-only", "embedding-similarity", "llm-as-judge"},
+            )
+        )
+        use_embedding = bool(
+            detector_context.get(
+                "use_embedding_similarity",
+                detector_mode in {"embedding-similarity", "hybrid"},
+            )
+        )
+        use_llm_judge = bool(
+            detector_context.get(
+                "use_llm_judge",
+                detector_mode in {"llm-as-judge", "hybrid"},
+            )
+        )
+
         # Pattern-based detection
-        pattern_score, matched_patterns, high_matches, medium_matches = self._calculate_pattern_score(text)
+        if use_patterns:
+            pattern_score, matched_patterns, high_matches, medium_matches = self._calculate_pattern_score(text)
+        else:
+            pattern_score, matched_patterns, high_matches, medium_matches = 0.0, [], 0, 0
         
         # Statistical features
         features = self._extract_statistical_features(text)
         entropy = self._calculate_entropy(text)
+
+        # Supervised ML prediction
+        if use_ml:
+            ml_prediction = self._score_with_ml(text)
+        else:
+            ml_prediction = InjectionModelPrediction(
+                label="benign",
+                malicious_probability=0.0,
+                confidence=0.0,
+                backend="disabled",
+                model_name="disabled_for_profile",
+                details={"detector_mode": detector_mode},
+            )
+        ml_score = ml_prediction.malicious_probability
+
+        if use_embedding:
+            embedding_prediction = self._score_with_embedding_similarity(text)
+        else:
+            embedding_prediction = EmbeddingSimilarityPrediction(
+                label="disabled",
+                risk_score=0.0,
+                confidence=0.0,
+                malicious_similarity=0.0,
+                benign_similarity=0.0,
+                model_name="disabled",
+                details={"detector_mode": detector_mode},
+            )
+        embedding_score = embedding_prediction.risk_score
+
+        if use_llm_judge:
+            llm_judge_result = self._score_with_llm_judge(text, detector_context)
+        else:
+            llm_judge_result = LLMJudgeResult(
+                label="disabled",
+                risk_score=0.0,
+                confidence=0.0,
+                rationale="LLM judge disabled for profile.",
+                metadata={"detector_mode": detector_mode},
+            )
+        llm_judge_score = llm_judge_result.risk_score
         
         # Combine scores
         # High entropy + pattern matches = more suspicious
@@ -226,19 +347,66 @@ class InjectionDetector:
             entropy * 0.3
         )
         
-        # Final score weighted combination
-        final_score = pattern_score * 0.7 + statistical_score * 0.3
+        # Final score weighted combination. The learned model is primary, while
+        # deterministic patterns remain high-precision guardrails.
+        if use_ml and use_patterns:
+            final_score = (
+                ml_score * config.security.injection_ml_weight +
+                pattern_score * config.security.injection_pattern_weight +
+                statistical_score * config.security.injection_statistical_weight
+            )
+        elif use_ml:
+            final_score = ml_score * 0.85 + statistical_score * 0.15
+        elif use_patterns:
+            final_score = pattern_score * 0.7 + statistical_score * 0.3
+        else:
+            final_score = 0.0
 
-        if high_matches:
+        final_score = max(final_score, embedding_score, llm_judge_score)
+
+        if use_patterns and high_matches:
             final_score = max(final_score, 0.85)
-        elif medium_matches >= 2:
+        elif use_patterns and medium_matches >= 2:
             final_score = max(final_score, config.security.injection_threshold * 0.7)
+
+        embedding_malicious = (
+            use_embedding
+            and embedding_prediction.label == "malicious"
+            and embedding_score >= config.security.injection_threshold
+        )
+        embedding_suspicious = (
+            use_embedding
+            and embedding_prediction.label in {"malicious", "suspicious"}
+            and embedding_score >= config.security.injection_threshold * 0.6
+        )
+        llm_malicious = (
+            use_llm_judge
+            and llm_judge_result.label == "malicious"
+            and llm_judge_score >= config.security.injection_threshold
+        )
+        llm_suspicious = (
+            use_llm_judge
+            and llm_judge_result.label in {"malicious", "suspicious"}
+            and llm_judge_score >= config.security.injection_threshold * 0.6
+        )
         
         # Determine security level
-        if high_matches >= 1 or final_score >= config.security.injection_threshold:
+        if (
+            (use_patterns and high_matches >= 1)
+            or final_score >= config.security.injection_threshold
+            or (use_ml and ml_prediction.label == "malicious" and ml_score >= config.security.injection_threshold)
+            or embedding_malicious
+            or llm_malicious
+        ):
             security_level = SecurityLevel.MALICIOUS
             passed = False
-        elif medium_matches >= 1 or final_score >= config.security.injection_threshold * 0.6:
+        elif (
+            (use_patterns and medium_matches >= 1)
+            or final_score >= config.security.injection_threshold * 0.6
+            or (use_ml and ml_score >= config.security.injection_threshold * 0.55)
+            or embedding_suspicious
+            or llm_suspicious
+        ):
             security_level = SecurityLevel.SUSPICIOUS
             passed = True  # Suspicious content is flagged but allowed with warnings
         else:
@@ -251,6 +419,38 @@ class InjectionDetector:
             confidence=final_score,
             details={
                 "security_level": security_level.value,
+                "detector_mode": detector_mode,
+                "rules_enabled": use_patterns,
+                "ml_enabled": use_ml,
+                "component_flags": {
+                    "use_ml_classifier": use_ml,
+                    "use_rule_guardrails": use_patterns,
+                    "use_embedding_similarity": use_embedding,
+                    "use_llm_judge": use_llm_judge,
+                },
+                "detector_backend": ml_prediction.backend,
+                "model_name": ml_prediction.model_name,
+                "model_status": self.get_model_status(),
+                "ml_score": round(ml_score, 3),
+                "ml_label": ml_prediction.label,
+                "ml_confidence": round(ml_prediction.confidence, 3),
+                "ml_details": ml_prediction.details,
+                "embedding_similarity": {
+                    "label": embedding_prediction.label,
+                    "score": round(embedding_score, 3),
+                    "confidence": round(embedding_prediction.confidence, 3),
+                    "malicious_similarity": round(embedding_prediction.malicious_similarity, 3),
+                    "benign_similarity": round(embedding_prediction.benign_similarity, 3),
+                    "model_name": embedding_prediction.model_name,
+                    "details": embedding_prediction.details,
+                },
+                "llm_judge": {
+                    "label": llm_judge_result.label,
+                    "score": round(llm_judge_score, 3),
+                    "confidence": round(llm_judge_result.confidence, 3),
+                    "rationale": llm_judge_result.rationale,
+                    "metadata": llm_judge_result.metadata,
+                },
                 "pattern_score": round(pattern_score, 3),
                 "statistical_score": round(statistical_score, 3),
                 "matched_patterns": matched_patterns,
@@ -259,15 +459,15 @@ class InjectionDetector:
             }
         )
     
-    def batch_detect(self, texts: List[str]) -> List[SecurityCheck]:
+    def batch_detect(self, texts: List[str], context: Optional[Dict] = None) -> List[SecurityCheck]:
         """Detect injection in multiple texts."""
-        return [self.detect(text) for text in texts]
+        return [self.detect(text, context=context) for text in texts]
     
     def sanitize_content(self, text: str, check: SecurityCheck) -> str:
         """
         Sanitize content based on security check.
         
-        For malicious content: return empty or placeholder
+        For malicious content: return a blocked-content marker
         For suspicious content: wrap with warnings
         For benign content: return as-is
         """

@@ -148,6 +148,7 @@ class AttackResult:
     unsafe_tools_called: List[str] = field(default_factory=list)
     response: str = ""
     defense_config: str = ""  # no-defense, prompt-only, rule-based, ml-assisted
+    execution_time_ms: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -161,6 +162,7 @@ class AttackResult:
             "unsafe_tools_called": self.unsafe_tools_called,
             "response": self.response[:300] + "..." if len(self.response) > 300 else self.response,
             "defense_config": self.defense_config,
+            "execution_time_ms": round(self.execution_time_ms, 2),
             "timestamp": self.timestamp.isoformat()
         }
 
@@ -174,15 +176,34 @@ class MetricsSummary:
     total_attacks: int = 0
     attack_success_rate: float = 0.0
     leakage_rate: float = 0.0
+    secret_leakage_rate: float = 0.0
     unsafe_tool_rate: float = 0.0
+    unsafe_tool_invocation_rate: float = 0.0
     benign_task_success_rate: float = 0.0
     avg_latency_ms: float = 0.0
+    latency_overhead_ms: float = 0.0
+    throughput_qps: float = 0.0
     injection_detection_accuracy: float = 0.0
     tool_risk_accuracy: float = 0.0
     false_positive_rate: float = 0.0
+    false_negative_rate: float = 0.0
+    precision: float = 0.0
+    recall: float = 0.0
+    f1_score: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
     
     def to_dict(self) -> Dict[str, Any]:
+        secret_leakage_rate = (
+            self.secret_leakage_rate
+            if self.secret_leakage_rate
+            else self.leakage_rate
+        )
+        unsafe_tool_invocation_rate = (
+            self.unsafe_tool_invocation_rate
+            if self.unsafe_tool_invocation_rate
+            else self.unsafe_tool_rate
+        )
+
         return {
             "total_tasks": self.total_tasks,
             "successful_tasks": self.successful_tasks,
@@ -190,12 +211,21 @@ class MetricsSummary:
             "total_attacks": self.total_attacks,
             "attack_success_rate": round(self.attack_success_rate, 3),
             "leakage_rate": round(self.leakage_rate, 3),
+            "secret_leakage_rate": round(secret_leakage_rate, 3),
             "unsafe_tool_rate": round(self.unsafe_tool_rate, 3),
+            "unsafe_tool_invocation_rate": round(unsafe_tool_invocation_rate, 3),
             "benign_task_success_rate": round(self.benign_task_success_rate, 3),
             "avg_latency_ms": round(self.avg_latency_ms, 2),
+            "latency_overhead_ms": round(self.latency_overhead_ms, 2),
+            "throughput_qps": round(self.throughput_qps, 3),
             "injection_detection_accuracy": round(self.injection_detection_accuracy, 3),
             "tool_risk_accuracy": round(self.tool_risk_accuracy, 3),
             "false_positive_rate": round(self.false_positive_rate, 3),
+            "false_negative_rate": round(self.false_negative_rate, 3),
+            "precision": round(self.precision, 3),
+            "recall": round(self.recall, 3),
+            "f1_score": round(self.f1_score, 3),
+            "f1": round(self.f1_score, 3),
             "timestamp": self.timestamp.isoformat()
         }
 

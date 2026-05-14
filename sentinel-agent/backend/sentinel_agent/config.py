@@ -10,7 +10,13 @@ class SecurityConfig:
     """Security middleware configuration."""
     # Injection Detection
     injection_model_name: str = "distilbert-base-uncased"
+    injection_model_backend: str = "ngram"  # ngram, auto, transformer
+    require_transformer_injection_model: bool = False
+    injection_ml_weight: float = 0.6
+    injection_pattern_weight: float = 0.3
+    injection_statistical_weight: float = 0.1
     injection_threshold: float = 0.7
+    embedding_similarity_threshold: float = 0.62
     max_suspicious_ratio: float = 0.3
     
     # Tool-Call Risk Classification
@@ -55,6 +61,22 @@ Always verify tool calls are safe before execution."""
 
 
 @dataclass
+class LLMConfig:
+    """Optional real LLM evaluation configuration.
+
+    Deterministic mode remains the default. Real adapters are only considered
+    when enable_real_llm is set through SENTINEL_ENABLE_LLM_EVAL.
+    """
+    enable_real_llm: bool = False
+    provider: str = "deterministic"
+    model_name: str = ""
+    base_url: str = ""
+    timeout_seconds: float = 30.0
+    temperature: float = 0.0
+    max_tokens: int = 512
+
+
+@dataclass
 class RetrievalConfig:
     """Retrieval subsystem configuration."""
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -81,6 +103,7 @@ class Config:
     def __init__(self):
         self.security = SecurityConfig()
         self.agent = AgentConfig()
+        self.llm = LLMConfig()
         self.retrieval = RetrievalConfig()
         self.logging = LoggingConfig()
         
@@ -91,12 +114,47 @@ class Config:
         """Load configuration from environment variables."""
         if os.getenv("INJECTION_THRESHOLD"):
             self.security.injection_threshold = float(os.getenv("INJECTION_THRESHOLD"))
+        if os.getenv("SENTINEL_INJECTION_MODEL"):
+            self.security.injection_model_name = os.getenv("SENTINEL_INJECTION_MODEL")
+        if os.getenv("SENTINEL_INJECTION_MODEL_BACKEND"):
+            self.security.injection_model_backend = os.getenv("SENTINEL_INJECTION_MODEL_BACKEND").lower()
+        if os.getenv("SENTINEL_REQUIRE_TRANSFORMER"):
+            self.security.require_transformer_injection_model = (
+                os.getenv("SENTINEL_REQUIRE_TRANSFORMER", "").lower() in {"1", "true", "yes"}
+            )
+        if os.getenv("SENTINEL_INJECTION_ML_WEIGHT"):
+            self.security.injection_ml_weight = float(os.getenv("SENTINEL_INJECTION_ML_WEIGHT"))
+        if os.getenv("SENTINEL_EMBEDDING_SIMILARITY_THRESHOLD"):
+            self.security.embedding_similarity_threshold = float(
+                os.getenv("SENTINEL_EMBEDDING_SIMILARITY_THRESHOLD")
+            )
         if os.getenv("RISK_THRESHOLD"):
             self.security.high_risk_threshold = float(os.getenv("RISK_THRESHOLD"))
         if os.getenv("MAX_STEPS"):
             self.agent.max_steps = int(os.getenv("MAX_STEPS"))
+        if os.getenv("SENTINEL_ENABLE_LLM_EVAL"):
+            self.llm.enable_real_llm = self._env_bool("SENTINEL_ENABLE_LLM_EVAL")
+        if os.getenv("SENTINEL_LLM_PROVIDER"):
+            self.llm.provider = os.getenv("SENTINEL_LLM_PROVIDER", "deterministic").lower()
+        if os.getenv("SENTINEL_LLM_MODEL"):
+            self.llm.model_name = os.getenv("SENTINEL_LLM_MODEL", "")
+        if os.getenv("SENTINEL_LLM_BASE_URL") or os.getenv("SENTINEL_LOCAL_LLM_URL"):
+            self.llm.base_url = (
+                os.getenv("SENTINEL_LLM_BASE_URL")
+                or os.getenv("SENTINEL_LOCAL_LLM_URL", "")
+            )
+        if os.getenv("SENTINEL_LLM_TIMEOUT_SECONDS"):
+            self.llm.timeout_seconds = float(os.getenv("SENTINEL_LLM_TIMEOUT_SECONDS"))
+        if os.getenv("SENTINEL_LLM_TEMPERATURE"):
+            self.llm.temperature = float(os.getenv("SENTINEL_LLM_TEMPERATURE"))
+        if os.getenv("SENTINEL_LLM_MAX_TOKENS"):
+            self.llm.max_tokens = int(os.getenv("SENTINEL_LLM_MAX_TOKENS"))
         if os.getenv("LOG_LEVEL"):
             self.logging.log_level = os.getenv("LOG_LEVEL")
+
+    def _env_bool(self, name: str) -> bool:
+        """Return True for common truthy environment values."""
+        return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 # Global configuration instance

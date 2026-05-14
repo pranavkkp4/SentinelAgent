@@ -1,37 +1,37 @@
 # SentinelAgent Backend Dependencies
 # Python 3.11+ required
+#
+# Keep the default install small and portable. The backend imports numpy
+# directly, while sentence-transformers and FAISS are optional at runtime and
+# have local fallbacks. Install requirements-ml.txt only when those optional
+# accelerators are needed in a compatible Python environment.
 
 # Web Framework
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
+fastapi>=0.109.0,<1
+uvicorn[standard]>=0.27.0,<1
+python-multipart>=0.0.6,<1
 
 # Data Validation
-pydantic==2.5.3
+pydantic>=2.5.3,<3
 
-# Machine Learning
-torch>=2.2.0
-transformers==4.36.2
-sentence-transformers==2.2.2
-scikit-learn==1.4.0
-numpy==1.26.3
-
-# Vector Search
-faiss-cpu==1.7.4
+# Numeric Utilities
+numpy>=2.3.0; python_version >= "3.14"
+numpy>=2.1.0; python_version == "3.13"
+numpy>=1.26.3,<3; python_version < "3.13"
 
 # HTTP Client
-httpx==0.26.0
+httpx>=0.26.0,<1
 
 # Environment & Configuration
-python-dotenv==1.0.0
+python-dotenv>=1.0.0,<2
 
 # Testing
-pytest==7.4.4
-pytest-asyncio==0.23.3
+pytest>=7.4.4,<9
+pytest-asyncio>=0.23.3,<2
 
 # Monitoring (optional)
-prometheus-client==0.19.0
+prometheus-client>=0.19.0,<1
 
 # Utilities
-structlog==23.2.0
-jsonschema==4.20.0
+structlog>=23.2.0,<26
+jsonschema>=4.20.0,<5

@@ -147,8 +147,12 @@ class ToolRiskClassifier:
         """Check if URLs in arguments comply with domain policy."""
         arg_str = json.dumps(arguments, default=str)
         urls = re.findall(r'https?://[^\s"\'>]+', arg_str)
+        emails = re.findall(
+            r'[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',
+            arg_str,
+        )
         
-        if not urls:
+        if not urls and not emails:
             return 0.0, []
         
         violations = []
@@ -160,6 +164,12 @@ class ToolRiskClassifier:
             if not allowed:
                 risk_score = max(risk_score, config.security.high_risk_threshold + 0.05)
                 violations.append(f"Domain not in allowlist: {domain}")
+
+        for domain in emails:
+            allowed = self._is_allowed_domain(domain)
+            if not allowed:
+                risk_score = max(risk_score, config.security.high_risk_threshold + 0.05)
+                violations.append(f"Recipient domain not in allowlist: {domain}")
         
         return min(risk_score, 1.0), violations
     
